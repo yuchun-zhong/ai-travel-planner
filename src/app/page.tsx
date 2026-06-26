@@ -193,14 +193,19 @@ export default function Home() {
 
   const handleCopy = useCallback(async () => {
     if (!notes) return;
+    // Strip markdown # symbols for cleaner plain text
+    const cleanText = notes
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '');
     try {
-      await navigator.clipboard.writeText(notes);
+      await navigator.clipboard.writeText(cleanText);
       setStatusMessage('已复制到剪贴板');
       setTimeout(() => setStatusMessage(''), 2000);
     } catch {
       // Fallback for environments where clipboard API is unavailable
       const textarea = document.createElement('textarea');
-      textarea.value = notes;
+      textarea.value = cleanText;
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
@@ -226,75 +231,148 @@ export default function Home() {
       : '笔记.pdf';
 
     try {
-      // Create a temporary container with inline styles for PDF rendering
+      // Create a visible but overlay container for rendering
+      const overlay = document.createElement('div');
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        z-index: 99999; background: white; overflow: auto;
+        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      `;
+
       const container = document.createElement('div');
       container.style.cssText = `
-        position: fixed; left: -9999px; top: 0;
-        width: 210mm; padding: 15mm;
+        width: 210mm; margin: 0 auto; padding: 15mm;
         background: #FFFFFF; color: #3D3229;
         font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
         font-size: 13px; line-height: 1.8;
       `;
 
-      // Clone the content and apply inline styles
-      const content = notesContentRef.current.cloneNode(true) as HTMLElement;
-      // Remove cursor element if present
+      // Build styled content from markdown
+      const content = document.createElement('div');
+      content.innerHTML = notesContentRef.current.innerHTML;
+      // Remove cursor
       const cursor = content.querySelector('.typing-cursor');
       if (cursor) cursor.remove();
 
-      // Apply inline styles to all elements for html2canvas compatibility
-      const applyStyles = (el: HTMLElement) => {
-        if (el.tagName.match(/^H[1-6]$/)) {
-          el.style.cssText += `color: #4A6741; font-family: "Noto Serif SC", serif; margin: 16px 0 8px 0; font-weight: 700;`;
-        }
-        if (el.tagName === 'H1') el.style.fontSize = '22px';
-        if (el.tagName === 'H2') el.style.fontSize = '18px';
-        if (el.tagName === 'H3') el.style.fontSize = '15px';
-        if (el.tagName === 'P') el.style.cssText += `margin: 6px 0;`;
-        if (el.tagName === 'LI') el.style.cssText += `margin: 3px 0;`;
-        if (el.tagName === 'STRONG' || el.tagName === 'B') el.style.cssText += `color: #4A6741;`;
-        if (el.tagName === 'BLOCKQUOTE') {
-          el.style.cssText += `border-left: 3px solid #4A6741; padding-left: 12px; margin: 8px 0; color: #8B7D6B; font-size: 12px;`;
-        }
-        if (el.tagName === 'CODE') {
-          el.style.cssText += `background: #F5F1EB; padding: 1px 4px; border-radius: 3px; font-size: 12px;`;
-        }
-        if (el.tagName === 'PRE') {
-          el.style.cssText += `background: #F5F1EB; padding: 10px; border-radius: 6px; overflow: hidden; font-size: 11px;`;
-        }
-        if (el.tagName === 'TABLE') {
-          el.style.cssText += `border-collapse: collapse; width: 100%; margin: 8px 0;`;
-        }
-        if (el.tagName === 'TD' || el.tagName === 'TH') {
-          el.style.cssText += `border: 1px solid #E8E0D4; padding: 6px 10px; text-align: left;`;
-        }
-        if (el.tagName === 'TH') {
-          el.style.cssText += `background: #F5F1EB; font-weight: 600;`;
-        }
-        // Process children recursively
-        Array.from(el.children).forEach(child => applyStyles(child as HTMLElement));
+      // Resolve all CSS variables to actual values and apply inline styles
+      const resolveColor = (prop: string, el: HTMLElement): string => {
+        const val = getComputedStyle(el).getPropertyValue(prop).trim();
+        return val || '#3D3229';
       };
-      applyStyles(content);
+
+      const styleElements = (el: HTMLElement) => {
+        const tag = el.tagName;
+        if (tag.match(/^H[1-6]$/)) {
+          el.style.color = '#4A6741';
+          el.style.fontFamily = '"Noto Serif SC", "SimSun", serif';
+          el.style.margin = '16px 0 8px 0';
+          el.style.fontWeight = '700';
+          el.style.lineHeight = '1.4';
+        }
+        if (tag === 'H1') el.style.fontSize = '22px';
+        if (tag === 'H2') el.style.fontSize = '18px';
+        if (tag === 'H3') el.style.fontSize = '15px';
+        if (tag === 'P') { el.style.margin = '6px 0'; el.style.color = '#3D3229'; }
+        if (tag === 'LI') { el.style.margin = '3px 0'; el.style.color = '#3D3229'; }
+        if (tag === 'STRONG' || tag === 'B') el.style.color = '#4A6741';
+        if (tag === 'BLOCKQUOTE') {
+          el.style.borderLeft = '3px solid #4A6741';
+          el.style.paddingLeft = '12px';
+          el.style.margin = '8px 0';
+          el.style.color = '#8B7D6B';
+          el.style.fontSize = '12px';
+        }
+        if (tag === 'CODE') {
+          el.style.background = '#F5F1EB';
+          el.style.padding = '1px 4px';
+          el.style.borderRadius = '3px';
+          el.style.fontSize = '12px';
+        }
+        if (tag === 'PRE') {
+          el.style.background = '#F5F1EB';
+          el.style.padding = '10px';
+          el.style.borderRadius = '6px';
+          el.style.overflow = 'hidden';
+          el.style.fontSize = '11px';
+          el.style.whiteSpace = 'pre-wrap';
+        }
+        if (tag === 'TABLE') {
+          el.style.borderCollapse = 'collapse';
+          el.style.width = '100%';
+          el.style.margin = '8px 0';
+        }
+        if (tag === 'TD' || tag === 'TH') {
+          el.style.border = '1px solid #E8E0D4';
+          el.style.padding = '6px 10px';
+          el.style.textAlign = 'left';
+        }
+        if (tag === 'TH') {
+          el.style.background = '#F5F1EB';
+          el.style.fontWeight = '600';
+        }
+        if (tag === 'UL' || tag === 'OL') {
+          el.style.paddingLeft = '20px';
+          el.style.margin = '6px 0';
+        }
+        if (tag === 'HR') {
+          el.style.border = 'none';
+          el.style.borderTop = '1px solid #E8E0D4';
+          el.style.margin = '12px 0';
+        }
+        // Resolve any remaining CSS variable colors
+        const computedColor = resolveColor('color', el);
+        if (computedColor && !el.style.color) {
+          el.style.color = computedColor;
+        }
+        Array.from(el.children).forEach(child => styleElements(child as HTMLElement));
+      };
+      styleElements(content);
 
       container.appendChild(content);
-      document.body.appendChild(container);
+      overlay.appendChild(container);
+      document.body.appendChild(overlay);
 
-      const html2pdf = (await import('html2pdf.js')).default;
-      await html2pdf()
-        .set({
-          margin: [10, 10, 10, 10],
-          filename: fileName,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        })
-        .from(container)
-        .save();
+      // Wait for rendering
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      document.body.removeChild(container);
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#FFFFFF',
+        width: container.scrollWidth,
+        height: container.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const imgWidth = pdfWidth - 20; // margins
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 10;
+
+      pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight - 20;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + 10;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight - 20;
+      }
+
+      pdf.save(fileName);
+      document.body.removeChild(overlay);
       setStatusMessage('PDF 下载成功');
       setTimeout(() => setStatusMessage(''), 2000);
-    } catch {
+    } catch (err) {
+      console.error('PDF generation error:', err);
       setStatusMessage('PDF 生成失败，请重试');
       setTimeout(() => setStatusMessage(''), 3000);
     }
