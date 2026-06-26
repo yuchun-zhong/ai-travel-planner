@@ -1,55 +1,40 @@
-node_modules
-dist
-.DS_Store
-*.swp
-.git/*
+# Python
 __pycache__/
-*.pyc
-.venv
-*.o
-*.a
-/vendor
+*.py[cod]
+*$py.class
+*.so
 *.egg-info/
-/.env
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
 .env
-.cozeproj/reduction
+.env.local
 
-# 视频文件
-*.mp4
-*.avi
-*.mov
-*.wmv
-*.flv
-*.mkv
-*.webm
-*.m4v
-*.mpeg
-*.mpg
-*.3gp
-*.f4v
-*.rmvb
-*.vob
+# Logs
+*.log
+logs/
 
-# 归档文件
-*.iso
-*.dmg
-*.rar
-*.zip
-*.gz
+# OS
+.DS_Store
+Thumbs.db
 
-# 文档类也默认加入
-*.pdf
-*.docx
-*.doc
-*.xlsx
-*.xls
-*.ppt
-*.pptx
-*.xlsx
-*.csv
+# uv
+uv.lock
 
-# Preview files
-.preview
-
-# CodeGraph index
-.codegraph
+# Project specific
+assets/
+*.tmp
