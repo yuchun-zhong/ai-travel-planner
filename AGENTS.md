@@ -53,3 +53,4 @@ pnpm start            # 生产启动
 | `react-markdown` | Markdown 渲染 |
 | `remark-gfm` | GFM 支持（表格等） |
 | `react-syntax-highlighter` | 代码高亮 |
+| `html2pdf.js` | 笔记导出为 PDF |

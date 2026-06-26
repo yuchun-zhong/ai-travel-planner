@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import html2pdf from 'html2pdf.js';
 
 interface StreamEvent {
   type: 'info' | 'progress' | 'content' | 'done' | 'error';
@@ -26,6 +27,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const notesEndRef = useRef<HTMLDivElement>(null);
+  const notesContentRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Auto-scroll notes
@@ -198,20 +200,30 @@ export default function Home() {
     });
   }, [notes]);
 
-  const handleDownload = useCallback(() => {
-    if (!notes) return;
+  const handleDownload = useCallback(async () => {
+    if (!notes || !notesContentRef.current) return;
+    setStatusMessage('正在生成 PDF...');
+
     const fileName = file
-      ? file.name.replace('.pdf', '') + '_笔记.md'
-      : '笔记.md';
-    const blob = new Blob([notes], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      ? file.name.replace('.pdf', '') + '_笔记.pdf'
+      : '笔记.pdf';
+
+    const opt = {
+      margin: [15, 15, 15, 15] as [number, number, number, number],
+      filename: fileName,
+      image: { type: 'jpeg' as const, quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
+    };
+
+    try {
+      await html2pdf().set(opt).from(notesContentRef.current).save();
+      setStatusMessage('PDF 下载成功');
+      setTimeout(() => setStatusMessage(''), 2000);
+    } catch {
+      setStatusMessage('PDF 生成失败，请重试');
+      setTimeout(() => setStatusMessage(''), 3000);
+    }
   }, [notes, file]);
 
   const handleReset = useCallback(() => {
@@ -458,7 +470,7 @@ export default function Home() {
                           color: 'var(--foreground)'
                         }}
                       >
-                        💾 下载
+                        💾 下载 PDF
                       </button>
                     </>
                   )}
@@ -468,6 +480,7 @@ export default function Home() {
               {/* Notes content */}
               <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
                 <div
+                  ref={notesContentRef}
                   className={`notes-content ${isStreaming ? 'streaming-cursor' : ''}`}
                 >
                   <MarkdownRenderer content={notes} />
@@ -525,7 +538,7 @@ export default function Home() {
               >
                 <li>• 上传文字版 PDF 效果最佳（非扫描件）</li>
                 <li>• 支持中英文教材，自动生成中文笔记</li>
-                <li>• 生成结果可一键复制或下载为 Markdown 文件</li>
+                <li>• 生成结果可一键复制或下载为 PDF 文件</li>
                 <li>• 笔记会自动标注重点和考点，方便复习</li>
                 <li>• 无需注册登录，无需配置 API Key，开箱即用</li>
               </ul>
