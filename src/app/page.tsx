@@ -218,60 +218,78 @@ export default function Home() {
   }, [notes]);
 
   const handleDownload = useCallback(async () => {
-    if (!notes || !notesContentRef.current) return;
+    if (!notes) return;
     setStatusMessage('正在生成 PDF...');
 
     const rawName = file ? file.name.replace(/\.pdf$/i, '') : '学习笔记';
     const safeName = rawName.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, '_');
 
     try {
-      // Create a styled container for PDF rendering
-      const container = document.createElement('div');
-      container.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 794px; z-index: -1;
-        background: #FFFFFF; padding: 50px 55px; font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+      // Create a hidden iframe for isolated rendering
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) throw new Error('Cannot access iframe document');
+
+      // Build styled HTML content
+      const styledHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <link href="https://fonts.googleapis.cn/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+              color: #3D3229; background: #FFFFFF; padding: 45px 50px;
+              line-height: 1.9; font-size: 13px;
+            }
+            h1,h2,h3,h4,h5,h6 { font-family: "Noto Serif SC", "SimSun", serif; color: #4A6741; line-height: 1.4; }
+            h1 { font-size: 22px; text-align: center; margin: 0 0 18px 0; padding-bottom: 12px; border-bottom: 2px solid #4A6741; }
+            h2 { font-size: 17px; margin: 24px 0 10px 0; border-bottom: 1px solid #E8E0D4; padding-bottom: 6px; }
+            h3 { font-size: 14px; margin: 16px 0 8px 0; }
+            p { margin: 8px 0; line-height: 1.9; }
+            ul, ol { padding-left: 22px; margin: 8px 0; }
+            li { margin: 4px 0; line-height: 1.8; }
+            strong, b { color: #4A6741; }
+            blockquote { border-left: 3px solid #4A6741; padding-left: 14px; margin: 12px 0; color: #8B7D6B; font-size: 12px; }
+            code { background: #F5F1EB; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+            pre { background: #F5F1EB; padding: 14px; border-radius: 6px; font-size: 11px; white-space: pre-wrap; word-break: break-all; margin: 10px 0; }
+            table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+            td, th { border: 1px solid #E8E0D4; padding: 8px 12px; text-align: left; font-size: 12px; }
+            th { background: #F5F1EB; font-weight: 600; color: #4A6741; }
+            hr { border: none; border-top: 1px solid #E8E0D4; margin: 16px 0; }
+          </style>
+        </head>
+        <body>${notesContentRef.current?.innerHTML || ''}</body>
+        </html>
       `;
 
-      // Clone content
-      const content = notesContentRef.current.cloneNode(true) as HTMLElement;
-      const cursorEl = content.querySelector('.streaming-cursor');
-      if (cursorEl) cursorEl.remove();
+      // Remove streaming cursor from content
+      const cleanHTML = styledHTML.replace(/<span class="streaming-cursor"[^>]*><\/span>/g, '');
 
-      // Apply inline styles to match frontend design
-      container.innerHTML = `
-        <style>
-          h1,h2,h3,h4,h5,h6 { font-family: "Noto Serif SC", "SimSun", serif; color: #4A6741; line-height: 1.4; margin-top: 1.2em; margin-bottom: 0.5em; }
-          h1 { font-size: 22px; text-align: center; margin-top: 0; padding-bottom: 12px; border-bottom: 2px solid #4A6741; }
-          h2 { font-size: 17px; border-bottom: 1px solid #E8E0D4; padding-bottom: 6px; }
-          h3 { font-size: 14px; }
-          p { margin: 0.6em 0; line-height: 1.9; color: #3D3229; }
-          ul, ol { padding-left: 22px; margin: 0.5em 0; }
-          li { margin: 0.3em 0; line-height: 1.8; color: #3D3229; }
-          strong, b { color: #4A6741; }
-          blockquote { border-left: 3px solid #4A6741; padding-left: 14px; margin: 0.8em 0; color: #8B7D6B; font-size: 12px; }
-          code { background: #F5F1EB; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
-          pre { background: #F5F1EB; padding: 14px; border-radius: 6px; font-size: 11px; white-space: pre-wrap; word-break: break-all; }
-          table { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
-          td, th { border: 1px solid #E8E0D4; padding: 8px 12px; text-align: left; font-size: 12px; }
-          th { background: #F5F1EB; font-weight: 600; color: #4A6741; }
-          hr { border: none; border-top: 1px solid #E8E0D4; margin: 1.2em 0; }
-        </style>
-        ${content.innerHTML}
-      `;
+      iframeDoc.open();
+      iframeDoc.write(cleanHTML);
+      iframeDoc.close();
 
-      document.body.appendChild(container);
-
-      // Wait for fonts to load
-      await document.fonts.ready;
+      // Wait for content and fonts to render
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (iframe.contentWindow?.document?.fonts) {
+        await iframe.contentWindow.document.fonts.ready;
+      }
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Generate PDF using html2pdf
+      // Generate PDF
       const html2pdf = (await import('html2pdf.js')).default;
+      const body = iframeDoc.body;
 
       await new Promise<void>((resolve, reject) => {
         html2pdf()
           .set({
-            margin: [15, 18, 15, 18],
+            margin: [12, 15, 12, 15],
             filename: `${safeName}_笔记.pdf`,
             image: { type: 'png', quality: 1 },
             html2canvas: {
@@ -279,6 +297,7 @@ export default function Home() {
               useCORS: true,
               letterRendering: true,
               logging: false,
+              windowWidth: 794,
             },
             jsPDF: {
               unit: 'mm',
@@ -286,7 +305,7 @@ export default function Home() {
               orientation: 'portrait' as const,
             },
           })
-          .from(container)
+          .from(body)
           .outputPdf('blob')
           .then((pdfBlob: Blob) => {
             const url = URL.createObjectURL(pdfBlob);
@@ -302,7 +321,7 @@ export default function Home() {
           .catch((err: Error) => reject(err));
       });
 
-      document.body.removeChild(container);
+      document.body.removeChild(iframe);
       setStatusMessage('PDF 下载成功！');
       setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
