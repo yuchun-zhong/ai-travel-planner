@@ -192,12 +192,30 @@ export default function Home() {
     setStatusMessage('已取消');
   }, []);
 
-  const handleCopy = useCallback(() => {
+  const handleCopy = useCallback(async () => {
     if (!notes) return;
-    navigator.clipboard.writeText(notes).then(() => {
+    try {
+      await navigator.clipboard.writeText(notes);
       setStatusMessage('已复制到剪贴板');
       setTimeout(() => setStatusMessage(''), 2000);
-    });
+    } catch {
+      // Fallback for environments where clipboard API is unavailable
+      const textarea = document.createElement('textarea');
+      textarea.value = notes;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        setStatusMessage('已复制到剪贴板');
+        setTimeout(() => setStatusMessage(''), 2000);
+      } catch {
+        setStatusMessage('复制失败，请手动复制');
+        setTimeout(() => setStatusMessage(''), 2000);
+      }
+      document.body.removeChild(textarea);
+    }
   }, [notes]);
 
   const handleDownload = useCallback(async () => {
@@ -255,7 +273,7 @@ export default function Home() {
             className="text-4xl font-bold tracking-wider"
             style={{ fontFamily: 'var(--font-serif)', color: 'var(--foreground)' }}
           >
-            AI Note Buddy
+            AI 笔记小搭档
           </h1>
         </div>
         <p className="text-base" style={{ color: 'var(--muted-foreground)' }}>
