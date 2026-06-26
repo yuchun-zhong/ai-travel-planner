@@ -218,7 +218,7 @@ export default function Home() {
   }, [notes]);
 
   const handleDownload = useCallback(async () => {
-    if (!notes) return;
+    if (!notes || !notesContentRef.current) return;
     setStatusMessage('正在生成 PDF...');
 
     const rawName = file ? file.name.replace(/\.pdf$/i, '') : '学习笔记';
@@ -227,13 +227,18 @@ export default function Home() {
     try {
       // Create a hidden iframe for isolated rendering
       const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;';
+      iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;border:none;';
       document.body.appendChild(iframe);
 
       const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
       if (!iframeDoc) throw new Error('Cannot access iframe document');
 
-      // Build styled HTML content
+      // Clone content and clean it
+      const content = notesContentRef.current.cloneNode(true) as HTMLElement;
+      const cursorEl = content.querySelector('.streaming-cursor');
+      if (cursorEl) cursorEl.remove();
+
+      // Build styled HTML with warm academic theme
       const styledHTML = `
         <!DOCTYPE html>
         <html>
@@ -244,83 +249,121 @@ export default function Home() {
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
               font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-              color: #3D3229; background: #FFFFFF; padding: 45px 50px;
-              line-height: 1.9; font-size: 13px;
+              color: #3D3229; background: #FFFFFF; padding: 0;
+              line-height: 1.9; font-size: 13px; width: 680px; margin: 0 auto;
             }
-            h1,h2,h3,h4,h5,h6 { font-family: "Noto Serif SC", "SimSun", serif; color: #4A6741; line-height: 1.4; }
-            h1 { font-size: 22px; text-align: center; margin: 0 0 18px 0; padding-bottom: 12px; border-bottom: 2px solid #4A6741; }
-            h2 { font-size: 17px; margin: 24px 0 10px 0; border-bottom: 1px solid #E8E0D4; padding-bottom: 6px; }
-            h3 { font-size: 14px; margin: 16px 0 8px 0; }
-            p { margin: 8px 0; line-height: 1.9; }
-            ul, ol { padding-left: 22px; margin: 8px 0; }
-            li { margin: 4px 0; line-height: 1.8; }
-            strong, b { color: #4A6741; }
-            blockquote { border-left: 3px solid #4A6741; padding-left: 14px; margin: 12px 0; color: #8B7D6B; font-size: 12px; }
-            code { background: #F5F1EB; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
-            pre { background: #F5F1EB; padding: 14px; border-radius: 6px; font-size: 11px; white-space: pre-wrap; word-break: break-all; margin: 10px 0; }
-            table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-            td, th { border: 1px solid #E8E0D4; padding: 8px 12px; text-align: left; font-size: 12px; }
+            h1,h2,h3,h4,h5,h6 {
+              font-family: "Noto Serif SC", "SimSun", serif; color: #4A6741; line-height: 1.4;
+              page-break-after: avoid; break-after: avoid;
+            }
+            h1 { font-size: 24px; text-align: center; margin: 0 0 20px 0; padding-bottom: 14px; border-bottom: 2.5px solid #4A6741; }
+            h2 { font-size: 18px; margin: 28px 0 12px 0; border-bottom: 1.5px solid #D4A853; padding-bottom: 8px; page-break-before: auto; }
+            h3 { font-size: 15px; margin: 18px 0 10px 0; color: #5A7A50; }
+            p { margin: 8px 0; line-height: 2; text-align: justify; }
+            ul, ol { padding-left: 24px; margin: 10px 0; }
+            li { margin: 5px 0; line-height: 1.9; }
+            strong, b { color: #4A6741; font-weight: 600; }
+            blockquote {
+              border-left: 3.5px solid #4A6741; padding: 10px 16px; margin: 14px 0;
+              color: #6B5D4F; font-size: 12.5px; background: #FAF8F3; border-radius: 0 6px 6px 0;
+            }
+            code {
+              background: #F5F1EB; padding: 2px 6px; border-radius: 4px; font-size: 12px;
+              font-family: "JetBrains Mono", "Fira Code", monospace; color: #4A6741;
+            }
+            pre {
+              background: #F5F1EB; padding: 16px; border-radius: 8px; font-size: 11.5px;
+              white-space: pre-wrap; word-break: break-all; margin: 12px 0;
+              border: 1px solid #E8E0D4;
+              page-break-inside: avoid; break-inside: avoid;
+            }
+            table {
+              border-collapse: collapse; width: 100%; margin: 14px 0;
+              page-break-inside: avoid; break-inside: avoid;
+            }
+            td, th { border: 1px solid #E8E0D4; padding: 10px 14px; text-align: left; font-size: 12.5px; }
             th { background: #F5F1EB; font-weight: 600; color: #4A6741; }
-            hr { border: none; border-top: 1px solid #E8E0D4; margin: 16px 0; }
+            tr:nth-child(even) { background: #FDFCFA; }
+            hr { border: none; border-top: 1px solid #E8E0D4; margin: 20px 0; }
+            img { max-width: 100%; height: auto; }
           </style>
         </head>
-        <body>${notesContentRef.current?.innerHTML || ''}</body>
+        <body>${content.innerHTML}</body>
         </html>
       `;
 
-      // Remove streaming cursor from content
-      const cleanHTML = styledHTML.replace(/<span class="streaming-cursor"[^>]*><\/span>/g, '');
-
       iframeDoc.open();
-      iframeDoc.write(cleanHTML);
+      iframeDoc.write(styledHTML);
       iframeDoc.close();
 
-      // Wait for content and fonts to render
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Wait for fonts and rendering
+      await new Promise(resolve => setTimeout(resolve, 1000));
       if (iframe.contentWindow?.document?.fonts) {
         await iframe.contentWindow.document.fonts.ready;
       }
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-      // Generate PDF
-      const html2pdf = (await import('html2pdf.js')).default;
+      // Use html2canvas + jsPDF for manual page splitting
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+
       const body = iframeDoc.body;
-
-      await new Promise<void>((resolve, reject) => {
-        html2pdf()
-          .set({
-            margin: [12, 15, 12, 15],
-            filename: `${safeName}_笔记.pdf`,
-            image: { type: 'png', quality: 1 },
-            html2canvas: {
-              scale: 2,
-              useCORS: true,
-              letterRendering: true,
-              logging: false,
-              windowWidth: 794,
-            },
-            jsPDF: {
-              unit: 'mm',
-              format: 'a4',
-              orientation: 'portrait' as const,
-            },
-          })
-          .from(body)
-          .outputPdf('blob')
-          .then((pdfBlob: Blob) => {
-            const url = URL.createObjectURL(pdfBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${safeName}_笔记.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            resolve();
-          })
-          .catch((err: Error) => reject(err));
+      const canvas = await html2canvas(body, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        windowWidth: 794,
+        backgroundColor: '#FFFFFF',
       });
 
+      // A4 dimensions in mm
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const marginTop = 15;
+      const marginBottom = 15;
+      const marginLeft = 15;
+      const marginRight = 15;
+      const contentWidth = pageWidth - marginLeft - marginRight;
+      const contentHeight = pageHeight - marginTop - marginBottom;
+
+      const imgWidth = contentWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgData = canvas.toDataURL('image/png');
+
+      // Calculate how many pages needed
+      const totalPages = Math.ceil(imgHeight / contentHeight);
+
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
+
+        // Calculate source position and dimensions
+        const sourceY = (page * contentHeight * canvas.width) / imgWidth;
+        const sourceHeight = Math.min(
+          (contentHeight * canvas.width) / imgWidth,
+          canvas.height - sourceY
+        );
+
+        // Create a canvas for this page
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sourceHeight;
+        const ctx = pageCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+          ctx.drawImage(
+            canvas,
+            0, sourceY, canvas.width, sourceHeight,
+            0, 0, canvas.width, sourceHeight
+          );
+          const pageImgData = pageCanvas.toDataURL('image/png');
+          const pageImgHeight = (sourceHeight * imgWidth) / canvas.width;
+          pdf.addImage(pageImgData, 'PNG', marginLeft, marginTop, imgWidth, pageImgHeight);
+        }
+      }
+
+      pdf.save(`${safeName}_笔记.pdf`);
       document.body.removeChild(iframe);
       setStatusMessage('PDF 下载成功！');
       setTimeout(() => setStatusMessage(''), 3000);
