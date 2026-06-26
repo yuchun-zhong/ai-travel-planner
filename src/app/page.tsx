@@ -224,111 +224,114 @@ export default function Home() {
       const content = notesContentRef.current;
       if (!content) return;
 
-      // Create print overlay
-      const overlay = document.createElement('div');
-      overlay.id = 'pdf-print-overlay';
-      overlay.innerHTML = `
-        <style>
-          @media screen {
-            #pdf-print-overlay {
-              position: fixed; inset: 0; z-index: 99999;
-              background: #fff; overflow: auto;
-              display: flex; flex-direction: column;
-            }
-            #pdf-print-overlay .print-toolbar {
-              position: sticky; top: 0; z-index: 10;
-              background: #4A6741; color: #fff;
-              padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-              font-family: "Noto Sans SC", sans-serif; font-size: 14px;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            }
-            #pdf-print-overlay .print-toolbar button {
-              background: #fff; color: #4A6741; border: none;
-              padding: 8px 20px; border-radius: 6px; cursor: pointer;
-              font-weight: 600; font-size: 14px;
-            }
-            #pdf-print-overlay .print-toolbar button:hover { background: #f0f0f0; }
-            #pdf-print-overlay .print-toolbar .tip { opacity: 0.85; font-size: 12px; }
-          }
-          #pdf-print-overlay .print-content {
-            padding: 40px 50px; max-width: 794px; margin: 0 auto;
-            font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-            color: #3D3229; line-height: 2; font-size: 13px;
-          }
-          #pdf-print-overlay h1,
-          #pdf-print-overlay h2,
-          #pdf-print-overlay h3,
-          #pdf-print-overlay h4,
-          #pdf-print-overlay h5,
-          #pdf-print-overlay h6 {
-            font-family: "Noto Serif SC", "SimSun", serif;
-            color: #4A6741; line-height: 1.4;
-            page-break-after: avoid;
-          }
-          #pdf-print-overlay h1 {
-            font-size: 22px; text-align: center;
-            margin: 0 0 18px; padding-bottom: 12px;
-            border-bottom: 2.5px solid #4A6741;
-          }
-          #pdf-print-overlay h2 {
-            font-size: 17px; margin: 24px 0 10px;
-            border-bottom: 1.5px solid #D4A853; padding-bottom: 6px;
-          }
-          #pdf-print-overlay h3 { font-size: 14px; margin: 16px 0 8px; color: #5A7A50; }
-          #pdf-print-overlay p { margin: 6px 0; text-align: justify; }
-          #pdf-print-overlay ul, #pdf-print-overlay ol { padding-left: 22px; margin: 8px 0; }
-          #pdf-print-overlay li { margin: 4px 0; }
-          #pdf-print-overlay strong, #pdf-print-overlay b { color: #4A6741; font-weight: 600; }
-          #pdf-print-overlay blockquote {
-            border-left: 3px solid #4A6741; padding: 8px 14px;
-            margin: 12px 0; color: #6B5D4F; font-size: 12px;
-            background: #FAF8F3; border-radius: 0 4px 4px 0;
-          }
-          #pdf-print-overlay code {
-            background: #F5F1EB; padding: 1px 5px; border-radius: 3px;
-            font-size: 11px; color: #4A6741;
-          }
-          #pdf-print-overlay pre {
-            background: #F5F1EB; padding: 14px; border-radius: 6px;
-            font-size: 11px; white-space: pre-wrap; word-break: break-all;
-            margin: 10px 0; border: 1px solid #E8E0D4;
-          }
-          #pdf-print-overlay table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-          #pdf-print-overlay td, #pdf-print-overlay th {
-            border: 1px solid #E8E0D4; padding: 8px 12px;
-            text-align: left; font-size: 12px;
-          }
-          #pdf-print-overlay th { background: #F5F1EB; font-weight: 600; color: #4A6741; }
-          #pdf-print-overlay tr:nth-child(even) { background: #FDFCFA; }
-          #pdf-print-overlay hr { border: none; border-top: 1px solid #E8E0D4; margin: 16px 0; }
+      // Create hidden iframe for printing
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'position:fixed;left:0;top:0;width:100%;height:100%;border:none;z-index:99999;background:#fff;';
+      document.body.appendChild(iframe);
 
-          @media print {
-            @page { size: A4; margin: 20mm 18mm; }
-            body > *:not(#pdf-print-overlay) { display: none !important; }
-            #pdf-print-overlay {
-              position: static !important; background: #fff !important;
-              overflow: visible !important;
-            }
-            #pdf-print-overlay .print-toolbar { display: none !important; }
-            #pdf-print-overlay .print-content {
-              padding: 0 !important; max-width: none !important;
-            }
-            #pdf-print-overlay h1,
-            #pdf-print-overlay h2,
-            #pdf-print-overlay h3 { page-break-after: avoid; }
-            #pdf-print-overlay table,
-            #pdf-print-overlay pre,
-            #pdf-print-overlay blockquote { page-break-inside: avoid; }
-          }
-        </style>
-        <div class="print-toolbar">
-          <button onclick="window.print()">💾 保存为 PDF</button>
-          <button onclick="document.getElementById('pdf-print-overlay').remove()">✕ 关闭</button>
-          <span class="tip">提示：在打印对话框中选择"另存为 PDF"即可下载</span>
-        </div>
-        <div class="print-content">${content.innerHTML}</div>
-      `;
-      document.body.appendChild(overlay);
+      const doc = iframe.contentDocument;
+      if (!doc) {
+        document.body.removeChild(iframe);
+        setStatusMessage('PDF 生成失败，请重试');
+        setTimeout(() => setStatusMessage(''), 3000);
+        return;
+      }
+
+      // Write content with full styles
+      doc.open();
+      doc.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>学习笔记</title>
+<link rel="preconnect" href="https://fonts.googleapis.cn">
+<link rel="preconnect" href="https://fonts.gstatic.cn" crossorigin>
+<link href="https://fonts.googleapis.cn/css2?family=Noto+Sans+SC:wght@400;600&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  @page { size: A4; margin: 20mm 18mm; }
+  body {
+    font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #3D3229; line-height: 2; font-size: 13px;
+    margin: 0; padding: 20px 30px;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Noto Serif SC", "SimSun", serif;
+    color: #4A6741; line-height: 1.4;
+    page-break-after: avoid;
+  }
+  h1 {
+    font-size: 22px; text-align: center;
+    margin: 0 0 18px; padding-bottom: 12px;
+    border-bottom: 2.5px solid #4A6741;
+  }
+  h2 {
+    font-size: 17px; margin: 24px 0 10px;
+    border-bottom: 1.5px solid #D4A853; padding-bottom: 6px;
+  }
+  h3 { font-size: 14px; margin: 16px 0 8px; color: #5A7A50; }
+  p { margin: 6px 0; text-align: justify; }
+  ul, ol { padding-left: 22px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  strong, b { color: #4A6741; font-weight: 600; }
+  blockquote {
+    border-left: 3px solid #4A6741; padding: 8px 14px;
+    margin: 12px 0; color: #6B5D4F; font-size: 12px;
+    background: #FAF8F3; border-radius: 0 4px 4px 0;
+  }
+  code {
+    background: #F5F1EB; padding: 1px 5px; border-radius: 3px;
+    font-size: 11px; color: #4A6741;
+  }
+  pre {
+    background: #F5F1EB; padding: 14px; border-radius: 6px;
+    font-size: 11px; white-space: pre-wrap; word-break: break-all;
+    margin: 10px 0; border: 1px solid #E8E0D4;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  td, th {
+    border: 1px solid #E8E0D4; padding: 8px 12px;
+    text-align: left; font-size: 12px;
+  }
+  th { background: #F5F1EB; font-weight: 600; color: #4A6741; }
+  tr:nth-child(even) { background: #FDFCFA; }
+  hr { border: none; border-top: 1px solid #E8E0D4; margin: 16px 0; }
+  table, pre, blockquote { page-break-inside: avoid; }
+
+  .toolbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: #4A6741; color: #fff;
+    padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+    font-family: "Noto Sans SC", sans-serif; font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .toolbar button {
+    background: #fff; color: #4A6741; border: none;
+    padding: 8px 20px; border-radius: 6px; cursor: pointer;
+    font-weight: 600; font-size: 14px;
+  }
+  .toolbar button:hover { background: #f0f0f0; }
+  .toolbar .tip { opacity: 0.85; font-size: 12px; }
+  @media print {
+    .toolbar { display: none !important; }
+    body { padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button onclick="window.print()">💾 保存为 PDF</button>
+  <button onclick="window.parent.document.body.removeChild(window.frameElement)">✕ 关闭</button>
+  <span class="tip">提示：在打印对话框中选择"另存为 PDF"即可下载</span>
+</div>
+${content.innerHTML}
+</body>
+</html>`);
+      doc.close();
+
+      // Wait for fonts to load
+      await doc.fonts.ready;
+      await new Promise(r => setTimeout(r, 1000));
     } catch (err) {
       console.error('[PDF Export] Error:', err);
       setStatusMessage('PDF 生成失败，请重试');
