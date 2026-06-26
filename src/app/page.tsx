@@ -226,122 +226,65 @@ export default function Home() {
     if (!notes || !notesContentRef.current) return;
     setStatusMessage('正在生成 PDF...');
 
-    const fileName = file
-      ? file.name.replace('.pdf', '') + '_笔记.pdf'
-      : '笔记.pdf';
+    const rawName = file ? file.name.replace(/\.pdf$/i, '') : '学习笔记';
+    const safeName = rawName.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, '_');
 
     try {
-      // Create a visible overlay container for rendering
-      const overlay = document.createElement('div');
-      overlay.id = 'pdf-render-overlay';
-      overlay.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        z-index: 99999; background: white; overflow: auto;
-        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-      `;
-
-      const container = document.createElement('div');
-      container.style.cssText = `
-        width: 794px; margin: 0 auto; padding: 40px;
-        background: #FFFFFF; color: #3D3229;
-        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-        font-size: 14px; line-height: 1.8;
-      `;
-
       // Clone content and remove cursor
-      const content = document.createElement('div');
-      content.innerHTML = notesContentRef.current.innerHTML;
-      const cursor = content.querySelector('.typing-cursor');
-      if (cursor) cursor.remove();
+      const content = notesContentRef.current.cloneNode(true) as HTMLElement;
+      const cursorEl = content.querySelector('.typing-cursor');
+      if (cursorEl) cursorEl.remove();
 
-      // Apply inline styles to all elements
-      const applyStyles = (el: HTMLElement) => {
-        const tag = el.tagName;
-        if (tag.match(/^H[1-6]$/)) {
-          el.style.cssText += `color: #4A6741; font-family: "Noto Serif SC", "SimSun", serif; margin: 16px 0 8px 0; font-weight: 700; line-height: 1.4;`;
-          if (tag === 'H1') el.style.fontSize = '24px';
-          if (tag === 'H2') el.style.fontSize = '18px';
-          if (tag === 'H3') el.style.fontSize = '15px';
-        }
-        if (tag === 'P') el.style.cssText += `margin: 8px 0; color: #3D3229;`;
-        if (tag === 'LI') el.style.cssText += `margin: 4px 0; color: #3D3229;`;
-        if (tag === 'STRONG' || tag === 'B') el.style.cssText += `color: #4A6741;`;
-        if (tag === 'BLOCKQUOTE') el.style.cssText += `border-left: 3px solid #4A6741; padding-left: 12px; margin: 8px 0; color: #8B7D6B; font-size: 13px;`;
-        if (tag === 'CODE') el.style.cssText += `background: #F5F1EB; padding: 1px 4px; border-radius: 3px; font-size: 12px;`;
-        if (tag === 'PRE') el.style.cssText += `background: #F5F1EB; padding: 12px; border-radius: 6px; overflow: hidden; font-size: 12px; white-space: pre-wrap;`;
-        if (tag === 'TABLE') el.style.cssText += `border-collapse: collapse; width: 100%; margin: 10px 0;`;
-        if (tag === 'TD' || tag === 'TH') el.style.cssText += `border: 1px solid #E8E0D4; padding: 8px 12px; text-align: left;`;
-        if (tag === 'TH') el.style.cssText += `background: #F5F1EB; font-weight: 600;`;
-        if (tag === 'UL' || tag === 'OL') el.style.cssText += `padding-left: 24px; margin: 8px 0;`;
-        if (tag === 'HR') el.style.cssText += `border: none; border-top: 1px solid #E8E0D4; margin: 16px 0;`;
-        Array.from(el.children).forEach(child => applyStyles(child as HTMLElement));
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        setStatusMessage('请允许弹出窗口以导出 PDF');
+        setTimeout(() => setStatusMessage(''), 3000);
+        return;
+      }
+
+      const printHtml = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>${safeName} - 学习笔记</title>
+<link href="https://fonts.googleapis.cn/css2?family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<style>
+@page{size:A4;margin:20mm 18mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;font-size:13px;line-height:1.9;color:#3D3229;padding:0}
+h1,h2,h3,h4,h5,h6{font-family:"Noto Serif SC","SimSun",serif;color:#4A6741;line-height:1.4;page-break-after:avoid;break-after:avoid;margin-top:1.2em;margin-bottom:.5em}
+h1{font-size:22px;text-align:center;margin-top:0;padding-bottom:12px;border-bottom:2px solid #4A6741}
+h2{font-size:17px;border-bottom:1px solid #E8E0D4;padding-bottom:6px}
+h3{font-size:14px}
+p{margin:.6em 0;text-align:justify}
+ul,ol{padding-left:22px;margin:.5em 0}
+li{margin:.3em 0}
+strong,b{color:#4A6741}
+blockquote{border-left:3px solid #4A6741;padding-left:14px;margin:.8em 0;color:#8B7D6B;font-size:12px}
+code{background:#F5F1EB;padding:1px 5px;border-radius:3px;font-size:12px}
+pre{background:#F5F1EB;padding:14px;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-all;page-break-inside:avoid}
+table{border-collapse:collapse;width:100%;margin:.8em 0;page-break-inside:avoid}
+td,th{border:1px solid #E8E0D4;padding:8px 12px;text-align:left;font-size:12px}
+th{background:#F5F1EB;font-weight:600}
+hr{border:none;border-top:1px solid #E8E0D4;margin:1.2em 0}
+img{max-width:100%;height:auto}
+</style>
+</head>
+<body>${content.innerHTML}</body>
+</html>`;
+
+      printWindow.document.write(printHtml);
+      printWindow.document.close();
+
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.focus();
+          printWindow.print();
+          setStatusMessage('');
+        }, 1000);
       };
-      applyStyles(content);
-
-      container.appendChild(content);
-      overlay.appendChild(container);
-      document.body.appendChild(overlay);
-
-      // Wait for fonts and rendering
-      await document.fonts.ready;
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
-
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#FFFFFF',
-        width: 794,
-        height: Math.max(container.scrollHeight, 500),
-        windowWidth: 794,
-      });
-
-      // Clean up overlay
-      document.body.removeChild(overlay);
-
-      // Check if canvas has content
-      if (canvas.width === 0 || canvas.height === 0) {
-        throw new Error('Canvas is empty');
-      }
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-      const marginTop = 15;
-      const marginBottom = 15;
-      const marginLeft = 12;
-      const marginRight = 12;
-      const contentWidth = pdfWidth - marginLeft - marginRight;
-      const contentHeight = pdfHeight - marginTop - marginBottom;
-      const imgHeight = (canvas.height * contentWidth) / canvas.width;
-
-      // First page
-      pdf.addImage(imgData, 'PNG', marginLeft, marginTop, contentWidth, imgHeight);
-      let heightLeft = imgHeight - contentHeight;
-
-      // Additional pages
-      let pageNum = 1;
-      while (heightLeft > 0) {
-        pageNum++;
-        pdf.addPage();
-        const yOffset = -(contentHeight * (pageNum - 1)) + marginTop;
-        pdf.addImage(imgData, 'PNG', marginLeft, yOffset, contentWidth, imgHeight);
-        heightLeft -= contentHeight;
-      }
-
-      pdf.save(fileName);
-      setStatusMessage('PDF 下载成功');
-      setTimeout(() => setStatusMessage(''), 2000);
     } catch (err) {
-      console.error('PDF generation error:', err);
-      // Clean up overlay if it exists
-      const overlay = document.getElementById('pdf-render-overlay');
-      if (overlay) document.body.removeChild(overlay);
+      console.error('[PDF Export] Error:', err);
       setStatusMessage('PDF 生成失败，请重试');
       setTimeout(() => setStatusMessage(''), 3000);
     }
