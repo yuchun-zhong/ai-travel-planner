@@ -221,22 +221,22 @@ export default function Home() {
     if (!notes) return;
 
     try {
-      // Convert markdown to simple HTML with inline styles
+      // Convert markdown to HTML matching frontend MarkdownRenderer styles
       const simpleHtml = notes
         // Escape HTML entities first
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        // Then process markdown
-        .replace(/^### (.+)$/gm, '<h3 style="font-family:serif;color:#4A6741;font-size:14px;margin:16px 0 8px;">$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2 style="font-family:serif;color:#4A6741;font-size:17px;margin:24px 0 10px;border-bottom:1.5px solid #D4A853;padding-bottom:6px;page-break-after:avoid;">$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1 style="font-family:serif;color:#4A6741;font-size:22px;text-align:center;margin:0 0 18px;padding-bottom:12px;border-bottom:2.5px solid #4A6741;">$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#4A6741;">$1</strong>')
-        .replace(/^• (.+)$/gm, '<p style="margin:6px 0;padding-left:16px;text-indent:-16px;">• $1</p>')
-        .replace(/^- (.+)$/gm, '<p style="margin:6px 0;padding-left:16px;text-indent:-16px;">• $1</p>')
-        .replace(/^(\d+)\. (.+)$/gm, '<p style="margin:6px 0;padding-left:20px;text-indent:-20px;">$1. $2</p>')
-        .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #E8E0D4;margin:16px 0;">')
-        .replace(/\n\n/g, '</p><p style="margin:6px 0;">')
+        // Process markdown - match frontend styles exactly
+        .replace(/^### (.+)$/gm, '<h3 style="font-family:Georgia,serif;color:#5A7A50;font-size:16px;margin:20px 0 10px;font-weight:600;">$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2 style="font-family:Georgia,serif;color:#4A6741;font-size:20px;margin:28px 0 12px;padding-bottom:8px;border-bottom:2px solid #D4A853;font-weight:700;page-break-after:avoid;">$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1 style="font-family:Georgia,serif;color:#4A6741;font-size:28px;text-align:center;margin:0 0 20px;padding-bottom:12px;border-bottom:3px solid #4A6741;font-weight:700;page-break-after:avoid;">$1</h1>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#4A6741;font-weight:600;">$1</strong>')
+        .replace(/^• (.+)$/gm, '<p style="margin:8px 0;padding-left:18px;text-indent:-18px;">• $1</p>')
+        .replace(/^- (.+)$/gm, '<p style="margin:8px 0;padding-left:18px;text-indent:-18px;">• $1</p>')
+        .replace(/^(\d+)\. (.+)$/gm, '<p style="margin:8px 0;padding-left:22px;text-indent:-22px;">$1. $2</p>')
+        .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #E8E0D4;margin:20px 0;">')
+        .replace(/\n\n/g, '</p><p style="margin:8px 0;">')
         .replace(/\n/g, '<br>');
 
       // Open new window with clean HTML
@@ -622,11 +622,14 @@ function MarkdownRenderer({ content }: { content: string }) {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-    // Headers
+    // Chapter headings: "第X章 XXX" -> h2 with simple style
+    html = html.replace(/^(第[一二三四五六七八九十\d]+章.+)$/gm, '<h2 class="chapter-title">$1</h2>');
+
+    // Other markdown headers (fallback)
     html = html.replace(/^####\s+(.*)$/gm, '<h4>$1</h4>');
     html = html.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
     html = html.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
+    html = html.replace(/^#\s+(.*)$/gm, '<h2>$1</h2>');
 
     // Bold
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -643,18 +646,15 @@ function MarkdownRenderer({ content }: { content: string }) {
     // Inline code
     html = html.replace(/`(.+?)`/g, '<code>$1</code>');
 
-    // Blockquotes
-    html = html.replace(/^>\s+(.*)$/gm, '<blockquote>$1</blockquote>');
+    // Bullet points: "• xxx" or "- xxx" or "* xxx"
+    html = html.replace(/^[•\-\*]\s+(.*)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Numbered points: "考点1：xxx" or "1. xxx"
+    html = html.replace(/^(考点\d+[：:].*)$/gm, '<p class="key-point">$1</p>');
 
     // Horizontal rules
     html = html.replace(/^---$/gm, '<hr />');
-
-    // Unordered lists
-    html = html.replace(/^[-*]\s+(.*)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-
-    // Star markers (replace "star" with actual star emoji)
-    html = html.replace(/⭐/g, '<span style="color: var(--accent)">⭐</span>');
 
     // Paragraphs - wrap remaining text lines
     html = html.replace(/^(?!<[huplbhod]|<li|<hr|<pre|<block)(.+)$/gm, (match) => {
