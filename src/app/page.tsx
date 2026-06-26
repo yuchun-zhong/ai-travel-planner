@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import html2pdf from 'html2pdf.js';
 
 interface StreamEvent {
   type: 'info' | 'progress' | 'content' | 'done' | 'error';
@@ -235,6 +234,7 @@ export default function Home() {
     };
 
     try {
+      const html2pdf = (await import('html2pdf.js')).default;
       await html2pdf().set(opt).from(notesContentRef.current).save();
       setStatusMessage('PDF 下载成功');
       setTimeout(() => setStatusMessage(''), 2000);
