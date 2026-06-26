@@ -1,6 +1,5 @@
 """联网搜索工具 - 为旅行规划师提供实时信息检索能力"""
 
-import json
 from coze_coding_dev_sdk import SearchClient
 from coze_coding_utils.log.write_log import request_context
 from coze_coding_utils.runtime_ctx.context import new_context
