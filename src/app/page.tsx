@@ -225,17 +225,73 @@ export default function Home() {
       ? file.name.replace('.pdf', '') + '_笔记.pdf'
       : '笔记.pdf';
 
-    const opt = {
-      margin: [15, 15, 15, 15] as [number, number, number, number],
-      filename: fileName,
-      image: { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-    };
-
     try {
+      // Create a temporary container with inline styles for PDF rendering
+      const container = document.createElement('div');
+      container.style.cssText = `
+        position: fixed; left: -9999px; top: 0;
+        width: 210mm; padding: 15mm;
+        background: #FFFFFF; color: #3D3229;
+        font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+        font-size: 13px; line-height: 1.8;
+      `;
+
+      // Clone the content and apply inline styles
+      const content = notesContentRef.current.cloneNode(true) as HTMLElement;
+      // Remove cursor element if present
+      const cursor = content.querySelector('.typing-cursor');
+      if (cursor) cursor.remove();
+
+      // Apply inline styles to all elements for html2canvas compatibility
+      const applyStyles = (el: HTMLElement) => {
+        if (el.tagName.match(/^H[1-6]$/)) {
+          el.style.cssText += `color: #4A6741; font-family: "Noto Serif SC", serif; margin: 16px 0 8px 0; font-weight: 700;`;
+        }
+        if (el.tagName === 'H1') el.style.fontSize = '22px';
+        if (el.tagName === 'H2') el.style.fontSize = '18px';
+        if (el.tagName === 'H3') el.style.fontSize = '15px';
+        if (el.tagName === 'P') el.style.cssText += `margin: 6px 0;`;
+        if (el.tagName === 'LI') el.style.cssText += `margin: 3px 0;`;
+        if (el.tagName === 'STRONG' || el.tagName === 'B') el.style.cssText += `color: #4A6741;`;
+        if (el.tagName === 'BLOCKQUOTE') {
+          el.style.cssText += `border-left: 3px solid #4A6741; padding-left: 12px; margin: 8px 0; color: #8B7D6B; font-size: 12px;`;
+        }
+        if (el.tagName === 'CODE') {
+          el.style.cssText += `background: #F5F1EB; padding: 1px 4px; border-radius: 3px; font-size: 12px;`;
+        }
+        if (el.tagName === 'PRE') {
+          el.style.cssText += `background: #F5F1EB; padding: 10px; border-radius: 6px; overflow: hidden; font-size: 11px;`;
+        }
+        if (el.tagName === 'TABLE') {
+          el.style.cssText += `border-collapse: collapse; width: 100%; margin: 8px 0;`;
+        }
+        if (el.tagName === 'TD' || el.tagName === 'TH') {
+          el.style.cssText += `border: 1px solid #E8E0D4; padding: 6px 10px; text-align: left;`;
+        }
+        if (el.tagName === 'TH') {
+          el.style.cssText += `background: #F5F1EB; font-weight: 600;`;
+        }
+        // Process children recursively
+        Array.from(el.children).forEach(child => applyStyles(child as HTMLElement));
+      };
+      applyStyles(content);
+
+      container.appendChild(content);
+      document.body.appendChild(container);
+
       const html2pdf = (await import('html2pdf.js')).default;
-      await html2pdf().set(opt).from(notesContentRef.current).save();
+      await html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: fileName,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        })
+        .from(container)
+        .save();
+
+      document.body.removeChild(container);
       setStatusMessage('PDF 下载成功');
       setTimeout(() => setStatusMessage(''), 2000);
     } catch {

@@ -2,19 +2,22 @@ import { NextRequest } from 'next/server';
 import { LLMClient, Config, HeaderUtils } from 'coze-coding-dev-sdk';
 import { getDocumentProxy, extractText } from 'unpdf';
 
-const NOTE_SYSTEM_PROMPT = `你是一位专业的大学课程助教，擅长将教材内容整理成结构清晰、重点突出的学习笔记。
+const NOTE_SYSTEM_PROMPT = `你是一位专业的大学课程助教，擅长将教材内容提炼成精简的期末复习笔记。
 
-请严格按照以下格式整理笔记：
+请严格按照以下格式整理笔记，务必精简，不要照搬原文：
 1. 使用中文输出，语言简洁准确
-2. 先提取本节/本章的**核心主题**（1句话概括）
-3. 列出**关键概念**（5-8个最重要的术语，每个配1-2句解释）
-4. 按逻辑层次展开**详细内容**，使用 Markdown 二级、三级标题组织
+2. 先用一句话概括本节/本章的**核心主题**
+3. 列出**关键概念**（3-5个最重要的术语，每个配1句简短解释）
+4. 用简洁的要点列表归纳**核心知识点**，每个要点不超过2行
 5. 重要定义、定理、公式用**加粗**标记
-6. 用 star 标注考试高频考点
-7. 如有代码示例、公式推导，保留原样并补充说明
-8. 结尾附上**知识要点速记**（3-5条最关键的结论）
+6. 用 star 标注考试高频考点（最多3个）
+7. 结尾附上**速记卡片**（3条最关键的结论，每条一句话）
 
-注意：使用 Markdown 格式输出，不要使用 HTML 标签。`;
+注意：
+- 使用 Markdown 格式输出，不要使用 HTML 标签
+- 内容要高度精简，只保留考试必考的核心内容
+- 删除所有举例、背景介绍、扩展阅读等非必要内容
+- 总长度控制在原文的 1/5 以内`;
 
 function chunkText(text: string, chunkSize: number = 6000, overlap: number = 300): string[] {
   if (text.length <= chunkSize) {
