@@ -29,12 +29,7 @@ export default function Home() {
   const notesContentRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Auto-scroll notes
-  useEffect(() => {
-    if (isStreaming) {
-      notesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [notes, isStreaming]);
+  // No auto-scroll during streaming - keep progress bar visible
 
   // Cleanup on unmount
   useEffect(() => {
@@ -230,59 +225,86 @@ export default function Home() {
     const safeName = rawName.replace(/[^\u4e00-\u9fa5a-zA-Z0-9_-]/g, '_');
 
     try {
-      // Clone content and remove cursor
+      // Create a styled container for PDF rendering
+      const container = document.createElement('div');
+      container.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 794px; z-index: -1;
+        background: #FFFFFF; padding: 50px 55px; font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+      `;
+
+      // Clone content
       const content = notesContentRef.current.cloneNode(true) as HTMLElement;
-      const cursorEl = content.querySelector('.typing-cursor');
+      const cursorEl = content.querySelector('.streaming-cursor');
       if (cursorEl) cursorEl.remove();
 
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        setStatusMessage('请允许弹出窗口以导出 PDF');
-        setTimeout(() => setStatusMessage(''), 3000);
-        return;
-      }
+      // Apply inline styles to match frontend design
+      container.innerHTML = `
+        <style>
+          h1,h2,h3,h4,h5,h6 { font-family: "Noto Serif SC", "SimSun", serif; color: #4A6741; line-height: 1.4; margin-top: 1.2em; margin-bottom: 0.5em; }
+          h1 { font-size: 22px; text-align: center; margin-top: 0; padding-bottom: 12px; border-bottom: 2px solid #4A6741; }
+          h2 { font-size: 17px; border-bottom: 1px solid #E8E0D4; padding-bottom: 6px; }
+          h3 { font-size: 14px; }
+          p { margin: 0.6em 0; line-height: 1.9; color: #3D3229; }
+          ul, ol { padding-left: 22px; margin: 0.5em 0; }
+          li { margin: 0.3em 0; line-height: 1.8; color: #3D3229; }
+          strong, b { color: #4A6741; }
+          blockquote { border-left: 3px solid #4A6741; padding-left: 14px; margin: 0.8em 0; color: #8B7D6B; font-size: 12px; }
+          code { background: #F5F1EB; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+          pre { background: #F5F1EB; padding: 14px; border-radius: 6px; font-size: 11px; white-space: pre-wrap; word-break: break-all; }
+          table { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
+          td, th { border: 1px solid #E8E0D4; padding: 8px 12px; text-align: left; font-size: 12px; }
+          th { background: #F5F1EB; font-weight: 600; color: #4A6741; }
+          hr { border: none; border-top: 1px solid #E8E0D4; margin: 1.2em 0; }
+        </style>
+        ${content.innerHTML}
+      `;
 
-      const printHtml = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8">
-<title>${safeName} - 学习笔记</title>
-<link href="https://fonts.googleapis.cn/css2?family=Noto+Sans+SC:wght@400;500;600&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
-<style>
-@page{size:A4;margin:20mm 18mm}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;font-size:13px;line-height:1.9;color:#3D3229;padding:0}
-h1,h2,h3,h4,h5,h6{font-family:"Noto Serif SC","SimSun",serif;color:#4A6741;line-height:1.4;page-break-after:avoid;break-after:avoid;margin-top:1.2em;margin-bottom:.5em}
-h1{font-size:22px;text-align:center;margin-top:0;padding-bottom:12px;border-bottom:2px solid #4A6741}
-h2{font-size:17px;border-bottom:1px solid #E8E0D4;padding-bottom:6px}
-h3{font-size:14px}
-p{margin:.6em 0;text-align:justify}
-ul,ol{padding-left:22px;margin:.5em 0}
-li{margin:.3em 0}
-strong,b{color:#4A6741}
-blockquote{border-left:3px solid #4A6741;padding-left:14px;margin:.8em 0;color:#8B7D6B;font-size:12px}
-code{background:#F5F1EB;padding:1px 5px;border-radius:3px;font-size:12px}
-pre{background:#F5F1EB;padding:14px;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-all;page-break-inside:avoid}
-table{border-collapse:collapse;width:100%;margin:.8em 0;page-break-inside:avoid}
-td,th{border:1px solid #E8E0D4;padding:8px 12px;text-align:left;font-size:12px}
-th{background:#F5F1EB;font-weight:600}
-hr{border:none;border-top:1px solid #E8E0D4;margin:1.2em 0}
-img{max-width:100%;height:auto}
-</style>
-</head>
-<body>${content.innerHTML}</body>
-</html>`;
+      document.body.appendChild(container);
 
-      printWindow.document.write(printHtml);
-      printWindow.document.close();
+      // Wait for fonts to load
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.focus();
-          printWindow.print();
-          setStatusMessage('');
-        }, 1000);
-      };
+      // Generate PDF using html2pdf
+      const html2pdf = (await import('html2pdf.js')).default;
+
+      await new Promise<void>((resolve, reject) => {
+        html2pdf()
+          .set({
+            margin: [15, 18, 15, 18],
+            filename: `${safeName}_笔记.pdf`,
+            image: { type: 'png', quality: 1 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              letterRendering: true,
+              logging: false,
+            },
+            jsPDF: {
+              unit: 'mm',
+              format: 'a4',
+              orientation: 'portrait' as const,
+            },
+          })
+          .from(container)
+          .outputPdf('blob')
+          .then((pdfBlob: Blob) => {
+            const url = URL.createObjectURL(pdfBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${safeName}_笔记.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            resolve();
+          })
+          .catch((err: Error) => reject(err));
+      });
+
+      document.body.removeChild(container);
+      setStatusMessage('PDF 下载成功！');
+      setTimeout(() => setStatusMessage(''), 3000);
     } catch (err) {
       console.error('[PDF Export] Error:', err);
       setStatusMessage('PDF 生成失败，请重试');
