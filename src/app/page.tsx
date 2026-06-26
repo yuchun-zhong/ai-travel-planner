@@ -231,8 +231,9 @@ export default function Home() {
       : '笔记.pdf';
 
     try {
-      // Create a visible but overlay container for rendering
+      // Create a visible overlay container for rendering
       const overlay = document.createElement('div');
+      overlay.id = 'pdf-render-overlay';
       overlay.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         z-index: 99999; background: white; overflow: auto;
@@ -241,99 +242,49 @@ export default function Home() {
 
       const container = document.createElement('div');
       container.style.cssText = `
-        width: 210mm; margin: 0 auto; padding: 15mm;
+        width: 794px; margin: 0 auto; padding: 40px;
         background: #FFFFFF; color: #3D3229;
         font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-        font-size: 13px; line-height: 1.8;
+        font-size: 14px; line-height: 1.8;
       `;
 
-      // Build styled content from markdown
+      // Clone content and remove cursor
       const content = document.createElement('div');
       content.innerHTML = notesContentRef.current.innerHTML;
-      // Remove cursor
       const cursor = content.querySelector('.typing-cursor');
       if (cursor) cursor.remove();
 
-      // Resolve all CSS variables to actual values and apply inline styles
-      const resolveColor = (prop: string, el: HTMLElement): string => {
-        const val = getComputedStyle(el).getPropertyValue(prop).trim();
-        return val || '#3D3229';
-      };
-
-      const styleElements = (el: HTMLElement) => {
+      // Apply inline styles to all elements
+      const applyStyles = (el: HTMLElement) => {
         const tag = el.tagName;
         if (tag.match(/^H[1-6]$/)) {
-          el.style.color = '#4A6741';
-          el.style.fontFamily = '"Noto Serif SC", "SimSun", serif';
-          el.style.margin = '16px 0 8px 0';
-          el.style.fontWeight = '700';
-          el.style.lineHeight = '1.4';
+          el.style.cssText += `color: #4A6741; font-family: "Noto Serif SC", "SimSun", serif; margin: 16px 0 8px 0; font-weight: 700; line-height: 1.4;`;
+          if (tag === 'H1') el.style.fontSize = '24px';
+          if (tag === 'H2') el.style.fontSize = '18px';
+          if (tag === 'H3') el.style.fontSize = '15px';
         }
-        if (tag === 'H1') el.style.fontSize = '22px';
-        if (tag === 'H2') el.style.fontSize = '18px';
-        if (tag === 'H3') el.style.fontSize = '15px';
-        if (tag === 'P') { el.style.margin = '6px 0'; el.style.color = '#3D3229'; }
-        if (tag === 'LI') { el.style.margin = '3px 0'; el.style.color = '#3D3229'; }
-        if (tag === 'STRONG' || tag === 'B') el.style.color = '#4A6741';
-        if (tag === 'BLOCKQUOTE') {
-          el.style.borderLeft = '3px solid #4A6741';
-          el.style.paddingLeft = '12px';
-          el.style.margin = '8px 0';
-          el.style.color = '#8B7D6B';
-          el.style.fontSize = '12px';
-        }
-        if (tag === 'CODE') {
-          el.style.background = '#F5F1EB';
-          el.style.padding = '1px 4px';
-          el.style.borderRadius = '3px';
-          el.style.fontSize = '12px';
-        }
-        if (tag === 'PRE') {
-          el.style.background = '#F5F1EB';
-          el.style.padding = '10px';
-          el.style.borderRadius = '6px';
-          el.style.overflow = 'hidden';
-          el.style.fontSize = '11px';
-          el.style.whiteSpace = 'pre-wrap';
-        }
-        if (tag === 'TABLE') {
-          el.style.borderCollapse = 'collapse';
-          el.style.width = '100%';
-          el.style.margin = '8px 0';
-        }
-        if (tag === 'TD' || tag === 'TH') {
-          el.style.border = '1px solid #E8E0D4';
-          el.style.padding = '6px 10px';
-          el.style.textAlign = 'left';
-        }
-        if (tag === 'TH') {
-          el.style.background = '#F5F1EB';
-          el.style.fontWeight = '600';
-        }
-        if (tag === 'UL' || tag === 'OL') {
-          el.style.paddingLeft = '20px';
-          el.style.margin = '6px 0';
-        }
-        if (tag === 'HR') {
-          el.style.border = 'none';
-          el.style.borderTop = '1px solid #E8E0D4';
-          el.style.margin = '12px 0';
-        }
-        // Resolve any remaining CSS variable colors
-        const computedColor = resolveColor('color', el);
-        if (computedColor && !el.style.color) {
-          el.style.color = computedColor;
-        }
-        Array.from(el.children).forEach(child => styleElements(child as HTMLElement));
+        if (tag === 'P') el.style.cssText += `margin: 8px 0; color: #3D3229;`;
+        if (tag === 'LI') el.style.cssText += `margin: 4px 0; color: #3D3229;`;
+        if (tag === 'STRONG' || tag === 'B') el.style.cssText += `color: #4A6741;`;
+        if (tag === 'BLOCKQUOTE') el.style.cssText += `border-left: 3px solid #4A6741; padding-left: 12px; margin: 8px 0; color: #8B7D6B; font-size: 13px;`;
+        if (tag === 'CODE') el.style.cssText += `background: #F5F1EB; padding: 1px 4px; border-radius: 3px; font-size: 12px;`;
+        if (tag === 'PRE') el.style.cssText += `background: #F5F1EB; padding: 12px; border-radius: 6px; overflow: hidden; font-size: 12px; white-space: pre-wrap;`;
+        if (tag === 'TABLE') el.style.cssText += `border-collapse: collapse; width: 100%; margin: 10px 0;`;
+        if (tag === 'TD' || tag === 'TH') el.style.cssText += `border: 1px solid #E8E0D4; padding: 8px 12px; text-align: left;`;
+        if (tag === 'TH') el.style.cssText += `background: #F5F1EB; font-weight: 600;`;
+        if (tag === 'UL' || tag === 'OL') el.style.cssText += `padding-left: 24px; margin: 8px 0;`;
+        if (tag === 'HR') el.style.cssText += `border: none; border-top: 1px solid #E8E0D4; margin: 16px 0;`;
+        Array.from(el.children).forEach(child => applyStyles(child as HTMLElement));
       };
-      styleElements(content);
+      applyStyles(content);
 
       container.appendChild(content);
       overlay.appendChild(container);
       document.body.appendChild(overlay);
 
-      // Wait for rendering
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for fonts and rendering
+      await document.fonts.ready;
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
@@ -341,38 +292,51 @@ export default function Home() {
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: '#FFFFFF',
-        width: container.scrollWidth,
-        height: container.scrollHeight,
+        width: 794,
+        height: Math.max(container.scrollHeight, 500),
+        windowWidth: 794,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      // Clean up overlay
+      document.body.removeChild(overlay);
+
+      // Check if canvas has content
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Canvas is empty');
+      }
+
+      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
       const pdfHeight = 297;
-      const imgWidth = pdfWidth - 20; // margins
+      const margin = 10;
+      const imgWidth = pdfWidth - margin * 2;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
       let heightLeft = imgHeight;
-      let position = 10;
+      let position = margin;
 
-      pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight - 20;
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight - margin * 2;
 
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight + 10;
+        position = heightLeft - imgHeight + margin;
         pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 10, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight - 20;
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight - margin * 2;
       }
 
       pdf.save(fileName);
-      document.body.removeChild(overlay);
       setStatusMessage('PDF 下载成功');
       setTimeout(() => setStatusMessage(''), 2000);
     } catch (err) {
       console.error('PDF generation error:', err);
+      // Clean up overlay if it exists
+      const overlay = document.getElementById('pdf-render-overlay');
+      if (overlay) document.body.removeChild(overlay);
       setStatusMessage('PDF 生成失败，请重试');
       setTimeout(() => setStatusMessage(''), 3000);
     }
