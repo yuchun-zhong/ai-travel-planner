@@ -312,21 +312,26 @@ export default function Home() {
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
       const pdfHeight = 297;
-      const margin = 10;
-      const imgWidth = pdfWidth - margin * 2;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const marginTop = 15;
+      const marginBottom = 15;
+      const marginLeft = 12;
+      const marginRight = 12;
+      const contentWidth = pdfWidth - marginLeft - marginRight;
+      const contentHeight = pdfHeight - marginTop - marginBottom;
+      const imgHeight = (canvas.height * contentWidth) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = margin;
+      // First page
+      pdf.addImage(imgData, 'PNG', marginLeft, marginTop, contentWidth, imgHeight);
+      let heightLeft = imgHeight - contentHeight;
 
-      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight - margin * 2;
-
+      // Additional pages
+      let pageNum = 1;
       while (heightLeft > 0) {
-        position = heightLeft - imgHeight + margin;
+        pageNum++;
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight - margin * 2;
+        const yOffset = -(contentHeight * (pageNum - 1)) + marginTop;
+        pdf.addImage(imgData, 'PNG', marginLeft, yOffset, contentWidth, imgHeight);
+        heightLeft -= contentHeight;
       }
 
       pdf.save(fileName);
