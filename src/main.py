@@ -11,7 +11,7 @@ import cozeloop
 import uvicorn
 import time
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, HTMLResponse
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
@@ -288,6 +288,18 @@ app = FastAPI(lifespan=lifespan)
 
 # OpenAI 兼容接口处理器
 openai_handler = OpenAIChatHandler(service)
+
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    """提供前端聊天界面"""
+    import os
+    html_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    try:
+        with open(html_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Frontend not found</h1>", status_code=404)
 
 
 @app.post("/async_run")
