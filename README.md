@@ -51,7 +51,7 @@
 ### 聊天主界面
 
 <p align="center">
-  <img src="assets/screenshot-chat-main.png" alt="AI旅行规划师 - 聊天主界面" width="80%" />
+  <img src="https://coze-coding-project.tos.coze.site/coze_storage_7655699269563121716/ai-travel-planner-assets/screenshot-chat-main_23141a96.png?sign=1814163687-ed4531edc4-0-e24b165758a70ee63bdf0a5645e484489b7051969fec72960b8231d6e33c4476" alt="AI旅行规划师 - 聊天主界面" width="80%" />
 </p>
 
 > 清新旅行风设计：蓝绿渐变背景 + 毛玻璃卡片 + 热门目的地快捷标签
@@ -59,7 +59,7 @@
 ### 对话与攻略展示
 
 <p align="center">
-  <img src="assets/screenshot-chat-response.png" alt="AI旅行规划师 - 攻略生成效果" width="80%" />
+  <img src="https://coze-coding-project.tos.coze.site/coze_storage_7655699269563121716/ai-travel-planner-assets/screenshot-chat-response_0ff97430.png?sign=1814163687-a2b5556bd5-0-8cd3960fce6c7a36d5290c9fc6004a8442d4dfa83047b625f697675f7678ca7b" alt="AI旅行规划师 - 攻略生成效果" width="80%" />
 </p>
 
 > 流式输出结构化攻略，包含每日行程、美食推荐、交通指南、预算总览
